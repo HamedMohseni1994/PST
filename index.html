@@ -1,0 +1,1094 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>PST — Personal Series Tracker</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#12141c">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="PST">
+<link rel="apple-touch-icon" href="icon-192.png">
+<link rel="icon" href="icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #12141c;
+    --surface: #1b1e29;
+    --surface-raised: #232635;
+    --border: #2a2d3b;
+    --accent: #f2a93b;
+    --accent-2: #5fc9b8;
+    --text: #e9e8ea;
+    --text-muted: #8b8d9c;
+    --danger: #d9645f;
+    --radius: 10px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background:var(--bg);
+    color:var(--text);
+    font-family:'Inter', sans-serif;
+    display:flex;
+    min-height:100vh;
+  }
+  ::selection{ background:var(--accent); color:#12141c; }
+  button{ font-family:inherit; }
+
+  #boot-screen{
+    position:fixed; inset:0; display:flex; align-items:center; justify-content:center;
+    flex-direction:column; gap:16px; background:var(--bg); z-index:100;
+  }
+  .boot-spinner{
+    width:28px; height:28px; border-radius:50%;
+    border:3px solid var(--border); border-top-color:var(--accent);
+    animation:spin .8s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+  .boot-label{ color:var(--text-muted); font-size:13px; }
+
+  #setup-screen, #login-screen{
+    position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    background:var(--bg); z-index:99; padding:20px;
+  }
+  .setup-card{ width:100%; max-width:440px; }
+  .setup-card h1{ font-family:'Space Grotesk', sans-serif; font-size:20px; margin:0 0 6px; }
+  .setup-card p{ color:var(--text-muted); font-size:13px; line-height:1.6; margin:0 0 18px; }
+  .setup-card input{
+    width:100%; background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:12px 14px; color:var(--text); font-size:13px; font-family:'IBM Plex Mono', monospace; margin-bottom:12px;
+  }
+  .setup-card input:focus{ outline:none; border-color:var(--accent-2); }
+  .setup-card button.primary{
+    background:var(--accent); border:none; border-radius:8px; padding:11px 20px; color:#1a1206;
+    font-weight:700; font-size:13px; cursor:pointer; width:100%;
+  }
+  .setup-error{ color:var(--danger); font-size:12px; margin-top:10px; display:none; }
+
+  .login-card{ width:100%; max-width:360px; padding:32px; text-align:center; }
+  .brand-kicker{ font-family:'IBM Plex Mono', monospace; font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-muted); margin-bottom:2px; }
+  .login-brand-wrap{ display:flex; flex-direction:column; align-items:center; margin-bottom:6px; }
+  .login-brand{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:26px; display:flex; align-items:center; justify-content:center; gap:8px; }
+  .login-brand .dot{ width:11px; height:11px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .login-sub{ color:var(--text-muted); font-size:13px; margin-bottom:26px; }
+  .profile-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:18px; max-height:260px; overflow-y:auto; }
+  .profile-btn{
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:13px 16px; border-radius:10px; font-size:14.5px; font-weight:600;
+    cursor:pointer; text-align:left; display:flex; align-items:center; gap:10px;
+    transition:border-color .15s, background .15s;
+  }
+  .profile-btn:hover{ border-color:var(--accent-2); background:var(--surface-raised); }
+  .profile-avatar{
+    width:30px; height:30px; border-radius:50%; background:var(--surface-raised);
+    display:flex; align-items:center; justify-content:center; font-family:'Space Grotesk',sans-serif;
+    font-weight:700; font-size:13px; color:var(--accent-2); flex-shrink:0;
+  }
+  .new-profile-row{ display:flex; gap:8px; }
+  .new-profile-row input{
+    flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px;
+    padding:11px 13px; color:var(--text); font-size:14px;
+  }
+  .new-profile-row input:focus{ outline:none; border-color:var(--accent-2); }
+  .new-profile-row button{
+    background:var(--accent-2); border:none; border-radius:8px; padding:0 18px;
+    color:#0c211d; font-weight:700; font-size:13px; cursor:pointer;
+  }
+  .login-note{ color:var(--text-muted); font-size:11.5px; margin-top:20px; line-height:1.5; }
+  .login-footer-link{ background:none; border:none; color:var(--text-muted); font-size:11px; cursor:pointer; margin-top:10px; text-decoration:underline; }
+
+  #app{ display:none; flex:1; min-width:0; }
+  a{ color:inherit; }
+
+  .sidebar{
+    width:220px; flex-shrink:0; background:var(--surface); border-right:1px solid var(--border);
+    display:flex; flex-direction:column; padding:24px 16px; position:sticky; top:0; height:100vh;
+  }
+  .brand-wrap{ padding:0 8px; margin-bottom:6px; }
+  .brand{ font-family:'Space Grotesk', sans-serif; font-weight:700; font-size:22px; letter-spacing:-0.02em; display:flex; align-items:center; gap:8px; }
+  .brand .dot{ width:10px; height:10px; border-radius:50%; background:var(--accent); box-shadow:0 0 8px var(--accent); }
+  .current-user{ padding:0 8px; margin-bottom:26px; display:flex; align-items:center; justify-content:space-between; }
+  .current-user span{ font-size:12px; color:var(--text-muted); }
+  .switch-link{ background:none; border:none; color:var(--accent-2); font-size:11px; cursor:pointer; padding:0; font-weight:600; }
+  nav{ display:flex; flex-direction:column; gap:2px; }
+  .nav-btn{
+    display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:8px; background:none;
+    border:none; color:var(--text-muted); font-size:14px; font-weight:500; text-align:left; cursor:pointer;
+    transition:background .15s, color .15s;
+  }
+  .nav-btn:hover{ background:var(--surface-raised); color:var(--text); }
+  .nav-btn.active{ background:var(--surface-raised); color:var(--accent); }
+  .nav-btn .count{ margin-left:auto; font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-muted); }
+  .sidebar-footer{ margin-top:auto; display:flex; flex-direction:column; gap:8px; }
+  .ghost-btn{
+    background:none; border:1px solid var(--border); color:var(--text-muted); padding:8px 10px;
+    border-radius:8px; font-size:12px; cursor:pointer; transition:border-color .15s, color .15s;
+  }
+  .ghost-btn:hover{ border-color:var(--accent-2); color:var(--accent-2); }
+
+  main{ flex:1; padding:32px 40px 80px; max-width:1300px; min-width:0; }
+  .view{ display:none; }
+  .view.active{ display:block; }
+  .page-title{ font-family:'Space Grotesk', sans-serif; font-size:26px; font-weight:700; margin:0 0 4px; }
+  .page-sub{ color:var(--text-muted); font-size:13px; margin:0 0 24px; }
+
+  .library-header{ display:flex; align-items:center; justify-content:space-between; margin-bottom:20px; flex-wrap:wrap; gap:12px; }
+  .library-controls{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
+  .group-select{
+    background:var(--surface); border:1px solid var(--border); color:var(--text);
+    padding:8px 32px 8px 12px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+    font-family:'Inter', sans-serif; appearance:none;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='10' height='6'><path d='M0 0l5 6 5-6z' fill='%238b8d9c'/></svg>");
+    background-repeat:no-repeat; background-position:right 12px center;
+  }
+  .group-select:focus{ outline:none; border-color:var(--accent-2); }
+  .view-toggle{ display:flex; gap:4px; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:3px; }
+  .view-toggle button{ background:none; border:none; color:var(--text-muted); padding:6px 12px; border-radius:6px; font-size:12px; font-weight:600; cursor:pointer; }
+  .view-toggle button.active{ background:var(--surface-raised); color:var(--accent); }
+
+  .grid.mode-comfortable{ display:grid; grid-template-columns:repeat(auto-fill, minmax(220px, 1fr)); gap:18px; }
+  .grid.mode-compact{ display:grid; grid-template-columns:repeat(auto-fill, minmax(128px, 1fr)); gap:12px; }
+  .grid.mode-list{ display:flex; flex-direction:column; gap:6px; }
+
+  .card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; cursor:pointer; transition:transform .12s, border-color .15s; display:flex; flex-direction:column; }
+  .card:hover{ transform:translateY(-2px); border-color:var(--accent-2); }
+  .poster{ width:100%; aspect-ratio:2/3; object-fit:cover; background:var(--surface-raised); display:block; }
+  .poster.placeholder{ display:flex; align-items:center; justify-content:center; color:var(--text-muted); font-family:'Space Grotesk', sans-serif; font-size:12px; text-align:center; padding:10px; }
+  .card-body{ padding:10px 12px 12px; display:flex; flex-direction:column; gap:7px; }
+  .mode-compact .card-body{ padding:7px 8px 9px; gap:5px; }
+  .card-title{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14px; line-height:1.3; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mode-compact .card-title{ font-size:12px; }
+  .card-meta{ display:flex; justify-content:space-between; align-items:center; font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-muted); }
+
+  .quick-mark{ background:var(--surface-raised); border:1px solid var(--border); color:var(--accent-2); font-size:10.5px; font-weight:600; padding:6px 8px; border-radius:6px; cursor:pointer; text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .quick-mark:hover{ border-color:var(--accent-2); }
+  .quick-mark.caught-up{ color:var(--text-muted); cursor:default; }
+  .quick-mark.caught-up:hover{ border-color:var(--border); }
+
+  .mode-list .card{ flex-direction:row; align-items:center; border-radius:8px; }
+  .mode-list .poster{ width:42px; height:60px; aspect-ratio:unset; flex-shrink:0; }
+  .mode-list .poster.placeholder{ width:42px; height:60px; font-size:8px; padding:4px; }
+  .mode-list .card-body{ flex:1; flex-direction:row; align-items:center; padding:8px 14px 8px 10px; gap:14px; min-width:0; flex-wrap:nowrap; }
+  .mode-list .card-title{ flex:1 1 auto; width:auto; min-width:60px; }
+  .mode-list .filmstrip{ flex:0 1 180px; }
+  .mode-list .card-meta{ width:50px; flex-shrink:0; }
+  .mode-list .quick-mark{ flex-shrink:0; width:auto; min-width:120px; max-width:180px; text-align:center; }
+
+  .filmstrip{ position:relative; height:13px; border-radius:3px; background:var(--surface-raised); overflow:hidden; }
+  .filmstrip-fill{ position:absolute; inset:0; height:100%; background:linear-gradient(90deg, var(--accent), var(--accent-2)); transition:width .2s; }
+  .filmstrip::before, .filmstrip::after{ content:""; position:absolute; left:0; right:0; height:4px; background-image: radial-gradient(circle, var(--bg) 42%, transparent 43%); background-size:9px 9px; background-repeat:repeat-x; z-index:2; }
+  .filmstrip::before{ top:0; } .filmstrip::after{ bottom:0; }
+  .filmstrip-label{ font-family:'IBM Plex Mono', monospace; font-size:10.5px; color:var(--text-muted); }
+
+  .empty{ border:1px dashed var(--border); border-radius:var(--radius); padding:48px 24px; text-align:center; color:var(--text-muted); }
+  .empty .title{ color:var(--text); font-family:'Space Grotesk', sans-serif; font-weight:600; margin-bottom:6px; }
+
+  .search-bar{ display:flex; gap:10px; margin-bottom:24px; }
+  .search-bar input{ flex:1; background:var(--surface); border:1px solid var(--border); border-radius:8px; padding:11px 14px; color:var(--text); font-size:14px; }
+  .search-bar input:focus{ outline:none; border-color:var(--accent-2); }
+  .search-bar button{ background:var(--accent); border:none; border-radius:8px; padding:0 20px; color:#1a1206; font-weight:600; font-size:14px; cursor:pointer; }
+  .result-row{ display:flex; gap:14px; padding:12px; border:1px solid var(--border); border-radius:var(--radius); margin-bottom:10px; background:var(--surface); align-items:center; }
+  .result-row img{ width:52px; height:78px; object-fit:cover; border-radius:6px; background:var(--surface-raised); flex-shrink:0; }
+  .result-info{ flex:1; min-width:0; }
+  .result-info .name{ font-family:'Space Grotesk', sans-serif; font-weight:600; font-size:14.5px; }
+  .result-info .year{ color:var(--text-muted); font-size:12px; font-family:'IBM Plex Mono', monospace; }
+  .result-info .overview{ color:var(--text-muted); font-size:12px; margin-top:4px; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .add-btn{ background:var(--surface-raised); border:1px solid var(--border); color:var(--text); padding:8px 14px; border-radius:8px; font-size:12.5px; font-weight:600; cursor:pointer; flex-shrink:0; white-space:nowrap; }
+  .add-btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .add-btn:disabled{ opacity:.5; cursor:default; }
+
+  .detail-header{ display:flex; gap:24px; margin-bottom:28px; }
+  .detail-header img{ width:160px; border-radius:var(--radius); flex-shrink:0; background:var(--surface-raised); }
+  .detail-info{ flex:1; }
+  .back-btn{ background:none; border:none; color:var(--text-muted); font-size:13px; cursor:pointer; margin-bottom:16px; padding:0; display:flex; align-items:center; gap:6px; }
+  .back-btn:hover{ color:var(--text); }
+  .detail-title{ font-family:'Space Grotesk', sans-serif; font-size:24px; font-weight:700; margin:0 0 8px; }
+  .detail-overview{ color:var(--text-muted); font-size:13px; line-height:1.6; margin-bottom:16px; max-width:600px; }
+  .detail-actions{ display:flex; gap:8px; align-items:center; margin-top:16px; }
+  .danger-link{ color:var(--danger); background:none; border:none; font-size:12px; cursor:pointer; padding:0; }
+
+  .season-tabs{ display:flex; gap:6px; margin:24px 0 16px; flex-wrap:wrap; }
+  .season-tab{ padding:7px 14px; border-radius:8px; border:1px solid var(--border); background:var(--surface); color:var(--text-muted); font-size:12.5px; font-weight:500; cursor:pointer; }
+  .season-tab.active{ background:var(--surface-raised); border-color:var(--accent-2); color:var(--accent-2); }
+  .season-actions{ display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; flex-wrap:wrap; gap:8px; }
+  .link-btn{ background:none; border:none; color:var(--accent-2); font-size:12px; font-weight:600; cursor:pointer; padding:0; }
+
+  .episode-list{ display:flex; flex-direction:column; gap:6px; }
+  .episode-row{ display:flex; align-items:center; gap:12px; padding:10px 12px; border:1px solid var(--border); border-radius:8px; background:var(--surface); transition:border-color .15s; }
+  .episode-row.watched{ border-color:rgba(95,201,184,.35); background:rgba(95,201,184,.05); }
+  .episode-row.unaired{ opacity:.45; }
+  .ep-check{ width:20px; height:20px; border-radius:5px; border:1.5px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; font-size:12px; color:var(--accent-2); background:var(--surface-raised); }
+  .episode-row.watched .ep-check{ background:var(--accent-2); border-color:var(--accent-2); color:#0c211d; }
+  .ep-num{ font-family:'IBM Plex Mono', monospace; font-size:11.5px; color:var(--text-muted); width:44px; flex-shrink:0; }
+  .ep-name{ flex:1; font-size:13px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .ep-date{ font-family:'IBM Plex Mono', monospace; font-size:11px; color:var(--text-muted); flex-shrink:0; }
+
+  .stat-grid{ display:grid; grid-template-columns:repeat(auto-fit, minmax(160px,1fr)); gap:16px; margin-bottom:8px; }
+  .stat-card{ background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; }
+  .stat-num{ font-family:'Space Grotesk', sans-serif; font-size:32px; font-weight:700; color:var(--accent); }
+  .stat-label{ color:var(--text-muted); font-size:12px; margin-top:4px; }
+
+  .toast{
+    position:fixed; bottom:24px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:var(--surface-raised); border:1px solid var(--border); color:var(--text);
+    padding:10px 18px; border-radius:8px; font-size:13px; opacity:0; transition:opacity .2s, transform .2s;
+    pointer-events:none; z-index:150;
+  }
+  .toast.show{ opacity:1; transform:translateX(-50%) translateY(0); }
+  .spinner{ width:16px; height:16px; border-radius:50%; border:2px solid var(--border); border-top-color:var(--accent); animation:spin .7s linear infinite; display:inline-block; }
+  input[type=file]{ display:none; }
+
+  @media (max-width:720px){
+    #app{ flex-direction:column; }
+    .sidebar{ width:100%; height:auto; position:relative; flex-direction:row; align-items:center; padding:12px 16px; gap:12px; overflow-x:auto; }
+    .brand{ margin-bottom:0; }
+    .current-user{ display:none; }
+    nav{ flex-direction:row; }
+    .sidebar-footer{ display:none; }
+    main{ padding:18px; }
+    .detail-header{ flex-direction:column; }
+    .detail-header img{ width:120px; }
+    .mode-list .card-body{ flex-wrap:wrap; row-gap:6px; }
+    .mode-list .card-title{ flex:1 1 100%; width:auto; order:1; }
+    .mode-list .filmstrip{ flex:1 1 auto; order:2; }
+    .mode-list .card-meta{ width:auto; order:3; }
+    .mode-list .quick-mark{ order:4; max-width:none; min-width:0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="boot-screen">
+  <div class="boot-spinner"></div>
+  <div class="boot-label">Loading…</div>
+</div>
+
+<div id="setup-screen">
+  <div class="setup-card">
+    <h1>One-time setup</h1>
+    <p>Paste the Web App URL you got after deploying the Apps Script backend (ends with <code>/exec</code>). This is saved on this device only — you'll do this once per computer/phone.</p>
+    <input type="text" id="setup-url-input" placeholder="https://script.google.com/macros/s/…/exec">
+    <button class="primary" id="setup-save-btn">Save & continue</button>
+    <div class="setup-error" id="setup-error">Couldn't reach that URL — double check it's correct and the deployment access is set to "Anyone".</div>
+  </div>
+</div>
+
+<div id="login-screen">
+  <div class="login-card">
+    <div class="login-brand-wrap">
+      <div class="brand-kicker">Reel</div>
+      <div class="login-brand"><span class="dot"></span>PST</div>
+    </div>
+    <div class="login-sub">Who's watching?</div>
+    <div class="profile-list" id="profile-list"></div>
+    <div class="new-profile-row">
+      <input type="text" id="new-profile-input" placeholder="Add a new profile…" maxlength="24">
+      <button id="new-profile-btn">Add</button>
+    </div>
+    <div class="login-note">No password — just pick your name. Everyone's list is stored in the shared Google Sheet, so it's the same wherever you open this file.</div>
+    <button class="login-footer-link" id="change-url-btn">Change backend URL</button>
+  </div>
+</div>
+
+<div id="app">
+  <div class="sidebar">
+    <div class="brand-wrap">
+      <div class="brand-kicker">Reel</div>
+      <div class="brand"><span class="dot"></span>PST</div>
+    </div>
+    <div class="current-user">
+      <span id="current-user-label"></span>
+      <button class="switch-link" id="switch-user-btn">Switch</button>
+    </div>
+    <nav>
+      <button class="nav-btn active" data-view="library">Library <span class="count" id="count-library"></span></button>
+      <button class="nav-btn" data-view="search">Search &amp; Add</button>
+      <button class="nav-btn" data-view="stats">Stats</button>
+    </nav>
+    <div class="sidebar-footer">
+      <button class="ghost-btn" id="export-btn">Export backup</button>
+    </div>
+  </div>
+
+  <main>
+    <section class="view active" id="view-library">
+      <div class="library-header">
+        <div>
+          <h1 class="page-title">Library</h1>
+          <p class="page-sub" id="library-sub">Shows you're currently watching.</p>
+        </div>
+        <div class="library-controls">
+          <select id="group-select" class="group-select">
+            <option value="watching">Watching</option>
+            <option value="watchlist">Watchlist</option>
+            <option value="completed">Completed</option>
+          </select>
+          <div class="view-toggle" id="view-toggle">
+            <button data-mode="list" class="active">List</button>
+            <button data-mode="compact">Compact</button>
+            <button data-mode="comfortable">Comfortable</button>
+          </div>
+        </div>
+      </div>
+      <div class="grid mode-list" id="library-grid"></div>
+      <div class="empty" id="library-empty" style="display:none;">
+        <div class="title">Nothing here yet</div>
+        <span id="library-empty-text">Use Search &amp; Add to find a show and start tracking it.</span>
+      </div>
+    </section>
+
+    <section class="view" id="view-search">
+      <h1 class="page-title">Search &amp; Add</h1>
+      <p class="page-sub">Powered by TMDB.</p>
+      <div class="search-bar">
+        <input type="text" id="search-input" placeholder="Search for a TV series…">
+        <button id="search-btn">Search</button>
+      </div>
+      <div id="search-results"></div>
+    </section>
+
+    <section class="view" id="view-stats">
+      <h1 class="page-title">Stats</h1>
+      <p class="page-sub">Your watching footprint so far.</p>
+      <div class="stat-grid" id="stat-grid"></div>
+    </section>
+
+    <section class="view" id="view-detail">
+      <button class="back-btn" id="detail-back">← Back to Library</button>
+      <div id="detail-content"></div>
+    </section>
+  </main>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  "use strict";
+
+  const TMDB_API_KEY = "3ab8099df842f00b8b2a59dbc5ad7a16";
+  const TMDB_BASE = "https://api.themoviedb.org/3";
+  const IMG_BASE = "https://image.tmdb.org/t/p/w342";
+  const LS_BACKEND_URL = "reel.backendUrl";
+  const LS_LAST_USER = "reel.lastUser";
+  const LS_VIEW_MODE = "reel.viewMode";
+
+  const todayStr = new Date().toISOString().slice(0,10);
+
+  let BACKEND_URL = localStorage.getItem(LS_BACKEND_URL) || "";
+  let currentUser = null;
+  let state = { shows: {} };
+  let viewMode = localStorage.getItem(LS_VIEW_MODE) || "list";
+
+  // ---------- Backend calls ----------
+  async function backendGet(params){
+    const url = new URL(BACKEND_URL);
+    Object.keys(params).forEach(k => url.searchParams.set(k, params[k]));
+    const res = await fetch(url.toString());
+    if(!res.ok) throw new Error("Backend GET failed");
+    return res.json();
+  }
+  async function backendPost(payload){
+    const res = await fetch(BACKEND_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    if(!res.ok) throw new Error("Backend POST failed");
+    return res.json();
+  }
+
+  async function listUsers(){
+    const data = await backendGet({ action: "listUsers" });
+    return data.users || [];
+  }
+  async function addUserRemote(name){
+    return backendPost({ action: "addUser", user: name });
+  }
+  async function getLibraryRemote(user){
+    const data = await backendGet({ action: "getLibrary", user });
+    return { shows: data.shows || {} };
+  }
+
+  // Debounced save: rapid successive changes (ticking several episodes quickly) collapse
+  // into a single network call ~700ms after the last change, instead of one call each.
+  let saveTimer = null;
+  let savePending = false;
+  function scheduleSave(){
+    savePending = true;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(flushSave, 700);
+  }
+  async function flushSave(){
+    if(!savePending || !currentUser) return;
+    savePending = false;
+    try{
+      await backendPost({ action: "saveLibrary", user: currentUser, library: state });
+    }catch(err){
+      console.error("save failed", err);
+      showToast("Couldn't save — check your connection");
+    }
+  }
+  // Save immediately if the tab is closing/hiding, so a quick change right before
+  // switching apps isn't lost waiting on the debounce timer.
+  document.addEventListener("visibilitychange", () => { if(document.hidden) flushSave(); });
+  window.addEventListener("beforeunload", () => { if(savePending) flushSave(); });
+
+  // Immediate save for explicit, deliberate actions (add/remove/refresh/mark season)
+  // where the user expects the result confirmed right away, not debounced.
+  async function saveNow(){
+    clearTimeout(saveTimer);
+    savePending = false;
+    try{
+      await backendPost({ action: "saveLibrary", user: currentUser, library: state });
+    }catch(err){
+      console.error("save failed", err);
+      showToast("Couldn't save — check your connection");
+      throw err;
+    }
+  }
+
+  // ---------- Toast ----------
+  let toastTimer;
+  function showToast(msg){
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.classList.add("show");
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(()=> t.classList.remove("show"), 2400);
+  }
+
+  // ---------- Boot / Setup / Login ----------
+  async function boot(){
+    document.querySelectorAll("#view-toggle button").forEach(b => b.classList.toggle("active", b.dataset.mode === viewMode));
+    if(!BACKEND_URL){
+      showSetup();
+      return;
+    }
+    await tryEnterLogin();
+  }
+
+  function showSetup(hadError){
+    document.getElementById("boot-screen").style.display = "none";
+    document.getElementById("login-screen").style.display = "none";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("setup-screen").style.display = "flex";
+    document.getElementById("setup-error").style.display = hadError ? "block" : "none";
+    if(BACKEND_URL) document.getElementById("setup-url-input").value = BACKEND_URL;
+  }
+
+  document.getElementById("setup-save-btn").addEventListener("click", async () => {
+    let val = document.getElementById("setup-url-input").value.trim();
+    if(!val) return;
+    if(!/^https?:\/\//i.test(val)) val = "https://" + val;
+    val = val.replace(/\/+$/, "");
+    const btn = document.getElementById("setup-save-btn");
+    btn.disabled = true;
+    btn.textContent = "Checking…";
+    BACKEND_URL = val;
+    try{
+      await listUsers(); // sanity check the URL actually works
+      localStorage.setItem(LS_BACKEND_URL, val);
+      btn.disabled = false;
+      btn.textContent = "Save & continue";
+      await tryEnterLogin();
+    }catch(err){
+      console.error(err);
+      btn.disabled = false;
+      btn.textContent = "Save & continue";
+      showSetup(true);
+    }
+  });
+
+  document.getElementById("change-url-btn").addEventListener("click", () => showSetup(false));
+
+  async function tryEnterLogin(){
+    document.getElementById("boot-screen").style.display = "flex";
+    document.getElementById("setup-screen").style.display = "none";
+    const remembered = localStorage.getItem(LS_LAST_USER);
+    try{
+      const users = await listUsers();
+      if(remembered && users.includes(remembered)){
+        await logIn(remembered);
+      }else{
+        await showLogin(users);
+      }
+    }catch(err){
+      console.error(err);
+      showSetup(true);
+    }
+  }
+
+  async function showLogin(preloadedUsers){
+    document.getElementById("boot-screen").style.display = "none";
+    document.getElementById("app").style.display = "none";
+    document.getElementById("login-screen").style.display = "flex";
+    const users = preloadedUsers || await listUsers().catch(() => []);
+    const list = document.getElementById("profile-list");
+    list.innerHTML = "";
+    users.forEach(u => {
+      const btn = document.createElement("button");
+      btn.className = "profile-btn";
+      btn.innerHTML = `<span class="profile-avatar">${u.slice(0,1).toUpperCase()}</span>${escapeHtml(u)}`;
+      btn.addEventListener("click", () => logIn(u));
+      list.appendChild(btn);
+    });
+  }
+
+  async function addNewProfile(){
+    const input = document.getElementById("new-profile-input");
+    const name = input.value.trim();
+    if(!name) return;
+    input.disabled = true;
+    try{
+      await addUserRemote(name);
+      input.value = "";
+      input.disabled = false;
+      await logIn(name);
+    }catch(err){
+      console.error(err);
+      input.disabled = false;
+      showToast("Couldn't add profile — check your connection");
+    }
+  }
+  document.getElementById("new-profile-btn").addEventListener("click", addNewProfile);
+  document.getElementById("new-profile-input").addEventListener("keydown", e => { if(e.key === "Enter") addNewProfile(); });
+
+  async function logIn(username){
+    document.getElementById("boot-screen").style.display = "flex";
+    document.getElementById("login-screen").style.display = "none";
+    currentUser = username;
+    try{
+      state = await getLibraryRemote(username);
+    }catch(err){
+      console.error(err);
+      showToast("Couldn't load your library — check your connection");
+      state = { shows: {} };
+    }
+    localStorage.setItem(LS_LAST_USER, username);
+    document.getElementById("current-user-label").textContent = username;
+    document.getElementById("boot-screen").style.display = "none";
+    document.getElementById("app").style.display = "flex";
+    history.replaceState({ view: "library" }, "", "#library");
+    setView("library");
+    renderLibrary();
+    renderStats();
+  }
+
+  document.getElementById("switch-user-btn").addEventListener("click", async () => {
+    localStorage.removeItem(LS_LAST_USER);
+    await showLogin();
+  });
+
+  // ---------- Navigation ----------
+  const views = document.querySelectorAll(".view");
+  const navBtns = document.querySelectorAll(".nav-btn");
+  function setView(name){
+    views.forEach(v => v.classList.remove("active"));
+    document.getElementById("view-" + name).classList.add("active");
+    navBtns.forEach(b => b.classList.toggle("active", b.dataset.view === name));
+  }
+  // Pushes a history entry so the device/browser back button steps back through
+  // in-app views instead of immediately exiting the page.
+  function navigateTo(name, extra){
+    const histState = Object.assign({ view: name }, extra || {});
+    history.pushState(histState, "", "#" + name);
+    setView(name);
+  }
+  navBtns.forEach(b => b.addEventListener("click", () => {
+    if(b.classList.contains("active")) return;
+    navigateTo(b.dataset.view);
+  }));
+
+  window.addEventListener("popstate", (e) => {
+    const s = e.state;
+    if(!s || s.view === "library"){
+      setView("library");
+      renderLibrary();
+      return;
+    }
+    if(s.view === "detail" && s.showId != null && state.shows[s.showId]){
+      currentShowId = s.showId;
+      const seasonNums = Object.keys(state.shows[s.showId].seasons).map(Number).sort((a,b)=>a-b);
+      currentSeason = seasonNums[0] || null;
+      setView("detail");
+      renderDetail();
+      return;
+    }
+    setView(s.view);
+  });
+
+  document.getElementById("view-toggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if(!btn) return;
+    viewMode = btn.dataset.mode;
+    document.querySelectorAll("#view-toggle button").forEach(b => b.classList.toggle("active", b === btn));
+    localStorage.setItem(LS_VIEW_MODE, viewMode);
+    renderLibrary();
+  });
+
+  // ---------- TMDB API ----------
+  async function tmdbFetch(path, params){
+    const url = new URL(TMDB_BASE + path);
+    url.searchParams.set("api_key", TMDB_API_KEY);
+    if(params){ Object.keys(params).forEach(k => url.searchParams.set(k, params[k])); }
+    const res = await fetch(url.toString());
+    if(!res.ok){ throw new Error("TMDB request failed (" + res.status + ")"); }
+    return res.json();
+  }
+
+  async function searchShows(query){
+    const data = await tmdbFetch("/search/tv", { query, include_adult: "false" });
+    return data.results || [];
+  }
+
+  async function fetchShowFull(id){
+    const details = await tmdbFetch("/tv/" + id);
+    const seasons = {};
+    const seasonMetas = (details.seasons || []).filter(s => s.season_number > 0 && s.episode_count > 0);
+    for(const sm of seasonMetas){
+      const seasonData = await tmdbFetch("/tv/" + id + "/season/" + sm.season_number);
+      const episodes = {};
+      (seasonData.episodes || []).forEach(ep => {
+        episodes[ep.episode_number] = { name: ep.name, air_date: ep.air_date || null, watched: false, watchedAt: null };
+      });
+      seasons[sm.season_number] = { name: sm.name, episode_count: sm.episode_count, episodes };
+    }
+    return {
+      id: details.id, name: details.name, poster_path: details.poster_path, overview: details.overview,
+      first_air_date: details.first_air_date, in_production: details.in_production, seasons,
+      addedAt: Date.now(), lastRefreshed: Date.now()
+    };
+  }
+
+  async function refreshShowSeasons(showId){
+    const show = state.shows[showId];
+    const details = await tmdbFetch("/tv/" + showId);
+    const seasonMetas = (details.seasons || []).filter(s => s.season_number > 0 && s.episode_count > 0);
+    for(const sm of seasonMetas){
+      const seasonData = await tmdbFetch("/tv/" + showId + "/season/" + sm.season_number);
+      const existing = show.seasons[sm.season_number] || { episodes: {} };
+      const episodes = {};
+      (seasonData.episodes || []).forEach(ep => {
+        const prev = existing.episodes[ep.episode_number];
+        episodes[ep.episode_number] = { name: ep.name, air_date: ep.air_date || null, watched: prev ? prev.watched : false, watchedAt: prev ? prev.watchedAt : null };
+      });
+      show.seasons[sm.season_number] = { name: sm.name, episode_count: sm.episode_count, episodes };
+    }
+    show.in_production = details.in_production;
+    show.lastRefreshed = Date.now();
+    await saveNow();
+  }
+
+  // ---------- Progress / sorting helpers ----------
+  function showProgress(show){
+    let aired = 0, watched = 0;
+    Object.values(show.seasons || {}).forEach(season => {
+      Object.values(season.episodes || {}).forEach(ep => {
+        if(ep.air_date && ep.air_date <= todayStr){
+          aired++;
+          if(ep.watched) watched++;
+        }
+      });
+    });
+    return { aired, watched, pct: aired ? Math.round((watched/aired)*100) : 0 };
+  }
+
+  function lastWatchedAt(show){
+    let max = 0;
+    Object.values(show.seasons || {}).forEach(season => {
+      Object.values(season.episodes || {}).forEach(ep => {
+        if(ep.watchedAt && ep.watchedAt > max) max = ep.watchedAt;
+      });
+    });
+    return max || null;
+  }
+
+  function nextUnwatchedEpisode(show){
+    const seasonNums = Object.keys(show.seasons).map(Number).sort((a,b)=>a-b);
+    for(const sn of seasonNums){
+      const season = show.seasons[sn];
+      const epNums = Object.keys(season.episodes).map(Number).sort((a,b)=>a-b);
+      for(const en of epNums){
+        const ep = season.episodes[en];
+        if(ep.air_date && ep.air_date <= todayStr && !ep.watched){
+          return { season: sn, episode: en };
+        }
+      }
+    }
+    return null;
+  }
+
+  function sortedShows(){
+    const shows = Object.values(state.shows);
+    return shows.sort((a,b) => {
+      const la = lastWatchedAt(a), lb = lastWatchedAt(b);
+      if(la && lb) return lb - la;
+      if(la && !lb) return -1;
+      if(!la && lb) return 1;
+      return b.addedAt - a.addedAt;
+    });
+  }
+
+  // A show is "completed" once every aired episode has been watched (needs at least
+  // one aired episode); "watching" once at least one episode has ever been watched;
+  // otherwise it sits in the watchlist untouched.
+  function showGroup(show){
+    const prog = showProgress(show);
+    if(prog.aired > 0 && prog.watched === prog.aired) return "completed";
+    if(prog.watched > 0) return "watching";
+    return "watchlist";
+  }
+
+  function posterUrl(path){ return path ? IMG_BASE + path : null; }
+  function escapeHtml(str){ const div = document.createElement("div"); div.textContent = str || ""; return div.innerHTML; }
+
+  // ---------- Library rendering ----------
+  function buildShowCard(show){
+    const prog = showProgress(show);
+    const nextEp = nextUnwatchedEpisode(show);
+    const card = document.createElement("div");
+    card.className = "card";
+    card.addEventListener("click", () => openDetail(show.id));
+
+    const posterSrc = posterUrl(show.poster_path);
+    const posterEl = posterSrc
+      ? `<img class="poster" src="${posterSrc}" alt="${escapeHtml(show.name)}">`
+      : `<div class="poster placeholder">${escapeHtml(show.name)}</div>`;
+
+    const quickMarkEl = nextEp
+      ? `<button class="quick-mark" data-season="${nextEp.season}" data-episode="${nextEp.episode}">▶ Mark S${nextEp.season}E${String(nextEp.episode).padStart(2,"0")} watched</button>`
+      : `<div class="quick-mark caught-up">All caught up</div>`;
+
+    card.innerHTML = `
+      ${posterEl}
+      <div class="card-body">
+        <div class="card-title">${escapeHtml(show.name)}</div>
+        <div class="filmstrip"><div class="filmstrip-fill" style="width:${prog.pct}%"></div></div>
+        <div class="card-meta"><span>${prog.watched}/${prog.aired}</span></div>
+        ${quickMarkEl}
+      </div>
+    `;
+
+    const qm = card.querySelector(".quick-mark[data-season]");
+    if(qm){
+      qm.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        qm.disabled = true;
+        const s = qm.dataset.season, ep = qm.dataset.episode;
+        show.seasons[s].episodes[ep].watched = true;
+        show.seasons[s].episodes[ep].watchedAt = Date.now();
+        scheduleSave();
+        renderLibrary();
+        renderStats();
+      });
+    }
+    return card;
+  }
+
+  let currentGroup = "watching";
+  const GROUP_LABELS = {
+    watching: { sub: "Shows you're currently watching.", empty: "No shows in progress. Tick an episode on something in your Watchlist to move it here." },
+    watchlist: { sub: "Shows you've added but haven't started.", empty: "Your watchlist is empty — use Search & Add to find something." },
+    completed: { sub: "Shows you've fully caught up on.", empty: "Nothing finished yet." },
+  };
+
+  function renderLibrary(){
+    const grid = document.getElementById("library-grid");
+    const empty = document.getElementById("library-empty");
+    grid.className = "grid mode-" + viewMode;
+    grid.innerHTML = "";
+
+    const allShows = sortedShows();
+    document.getElementById("count-library").textContent = allShows.length || "";
+    document.getElementById("library-sub").textContent = GROUP_LABELS[currentGroup].sub;
+
+    const shows = allShows.filter(s => showGroup(s) === currentGroup);
+
+    if(shows.length === 0){
+      empty.style.display = "block";
+      document.getElementById("library-empty-text").textContent = allShows.length === 0
+        ? "Use Search & Add to find a show and start tracking it."
+        : GROUP_LABELS[currentGroup].empty;
+      return;
+    }
+    empty.style.display = "none";
+    shows.forEach(show => grid.appendChild(buildShowCard(show)));
+  }
+
+  document.getElementById("group-select").addEventListener("change", (e) => {
+    currentGroup = e.target.value;
+    renderLibrary();
+  });
+
+  // ---------- Search ----------
+  const searchInput = document.getElementById("search-input");
+  const searchBtn = document.getElementById("search-btn");
+  const searchResults = document.getElementById("search-results");
+
+  async function runSearch(){
+    const q = searchInput.value.trim();
+    if(!q) return;
+    searchResults.innerHTML = `<div class="empty"><span class="spinner"></span> Searching…</div>`;
+    try{
+      const results = await searchShows(q);
+      if(results.length === 0){
+        searchResults.innerHTML = `<div class="empty">No shows found for "${escapeHtml(q)}".</div>`;
+        return;
+      }
+      searchResults.innerHTML = "";
+      results.forEach(r => {
+        const already = !!state.shows[r.id];
+        const row = document.createElement("div");
+        row.className = "result-row";
+        const posterSrc = posterUrl(r.poster_path);
+        const year = (r.first_air_date || "").slice(0,4) || "—";
+        row.innerHTML = `
+          ${posterSrc ? `<img src="${posterSrc}" alt="">` : `<div class="poster placeholder" style="width:52px;height:78px;border-radius:6px;font-size:10px;">${escapeHtml(r.name)}</div>`}
+          <div class="result-info">
+            <div class="name">${escapeHtml(r.name)}</div>
+            <div class="year">${year}</div>
+            <div class="overview">${escapeHtml(r.overview || "No overview available.")}</div>
+          </div>
+          <button class="add-btn" ${already ? "disabled" : ""}>${already ? "In library" : "Add"}</button>
+        `;
+        const btn = row.querySelector(".add-btn");
+        btn.addEventListener("click", async () => {
+          btn.disabled = true;
+          btn.innerHTML = `<span class="spinner"></span>`;
+          try{
+            const full = await fetchShowFull(r.id);
+            state.shows[full.id] = full;
+            await saveNow();
+            btn.textContent = "In library";
+            showToast(full.name + " added to your library");
+            renderLibrary();
+            renderStats();
+          }catch(err){
+            console.error(err);
+            btn.disabled = false;
+            btn.textContent = "Add";
+            showToast("Couldn't add that show — try again");
+          }
+        });
+        searchResults.appendChild(row);
+      });
+    }catch(err){
+      console.error(err);
+      searchResults.innerHTML = `<div class="empty">Search failed. Check your connection or API key.</div>`;
+    }
+  }
+  searchBtn.addEventListener("click", runSearch);
+  searchInput.addEventListener("keydown", (e) => { if(e.key === "Enter") runSearch(); });
+
+  // ---------- Detail view ----------
+  let currentShowId = null;
+  let currentSeason = null;
+
+  function openDetail(id){
+    currentShowId = id;
+    const show = state.shows[id];
+    const seasonNums = Object.keys(show.seasons).map(Number).sort((a,b)=>a-b);
+    currentSeason = seasonNums[0] || null;
+    navigateTo("detail", { showId: id });
+    renderDetail();
+  }
+
+  document.getElementById("detail-back").addEventListener("click", () => {
+    history.back();
+  });
+
+  function renderDetail(){
+    const show = state.shows[currentShowId];
+    if(!show){ setView("library"); return; }
+    const container = document.getElementById("detail-content");
+    const prog = showProgress(show);
+    const posterSrc = posterUrl(show.poster_path);
+
+    container.innerHTML = `
+      <div class="detail-header">
+        ${posterSrc ? `<img src="${posterSrc}" alt="">` : `<div class="poster placeholder" style="width:160px;aspect-ratio:2/3;border-radius:10px;">${escapeHtml(show.name)}</div>`}
+        <div class="detail-info">
+          <div class="detail-title">${escapeHtml(show.name)}</div>
+          <div class="detail-overview">${escapeHtml(show.overview || "")}</div>
+          <div class="filmstrip-label" style="margin-bottom:8px;">${prog.watched} of ${prog.aired} aired episodes watched (${prog.pct}%)</div>
+          <div class="filmstrip" style="max-width:280px;"><div class="filmstrip-fill" style="width:${prog.pct}%"></div></div>
+          <div class="detail-actions">
+            <button class="ghost-btn" id="refresh-show-btn">Refresh episode data</button>
+            <button class="danger-link" id="remove-show-btn">Remove from library</button>
+          </div>
+        </div>
+      </div>
+      <div class="season-tabs" id="season-tabs"></div>
+      <div class="season-actions">
+        <span class="filmstrip-label" id="season-progress-label"></span>
+        <button class="link-btn" id="mark-season-btn">Mark entire season watched</button>
+      </div>
+      <div class="episode-list" id="episode-list"></div>
+    `;
+
+    document.getElementById("refresh-show-btn").addEventListener("click", async (e) => {
+      e.target.disabled = true;
+      e.target.innerHTML = `<span class="spinner"></span>`;
+      try{
+        await refreshShowSeasons(currentShowId);
+        showToast("Episode data refreshed");
+        renderDetail();
+      }catch(err){
+        console.error(err);
+        showToast("Refresh failed");
+        e.target.disabled = false;
+        e.target.textContent = "Refresh episode data";
+      }
+    });
+
+    document.getElementById("remove-show-btn").addEventListener("click", async () => {
+      if(confirm(`Remove "${show.name}" from your library? This cannot be undone.`)){
+        const removedId = currentShowId;
+        delete state.shows[removedId];
+        try{
+          await saveNow();
+        }catch(err){
+          state.shows[removedId] = show; // restore on failure
+          return;
+        }
+        history.back();
+        renderLibrary();
+        renderStats();
+        showToast("Removed from library");
+      }
+    });
+
+    renderSeasonTabs();
+    renderEpisodes();
+  }
+
+  function renderSeasonTabs(){
+    const show = state.shows[currentShowId];
+    const tabWrap = document.getElementById("season-tabs");
+    const seasonNums = Object.keys(show.seasons).map(Number).sort((a,b)=>a-b);
+    tabWrap.innerHTML = "";
+    seasonNums.forEach(num => {
+      const btn = document.createElement("button");
+      btn.className = "season-tab" + (num === currentSeason ? " active" : "");
+      btn.textContent = "Season " + num;
+      btn.addEventListener("click", () => { currentSeason = num; renderSeasonTabs(); renderEpisodes(); });
+      tabWrap.appendChild(btn);
+    });
+  }
+
+  function renderEpisodes(){
+    const show = state.shows[currentShowId];
+    const season = show.seasons[currentSeason];
+    const list = document.getElementById("episode-list");
+    const label = document.getElementById("season-progress-label");
+    if(!season){ list.innerHTML = ""; return; }
+
+    const epNums = Object.keys(season.episodes).map(Number).sort((a,b)=>a-b);
+    let aired = 0, watched = 0;
+    epNums.forEach(n => {
+      const ep = season.episodes[n];
+      if(ep.air_date && ep.air_date <= todayStr){ aired++; if(ep.watched) watched++; }
+    });
+    label.textContent = `${watched}/${aired} watched in this season`;
+
+    list.innerHTML = "";
+    epNums.forEach(n => {
+      const ep = season.episodes[n];
+      const isUnaired = !ep.air_date || ep.air_date > todayStr;
+      const row = document.createElement("div");
+      row.className = "episode-row" + (ep.watched ? " watched" : "") + (isUnaired ? " unaired" : "");
+      row.innerHTML = `
+        <div class="ep-check">${ep.watched ? "✓" : ""}</div>
+        <div class="ep-num">S${currentSeason}E${String(n).padStart(2,"0")}</div>
+        <div class="ep-name">${escapeHtml(ep.name || "Episode " + n)}</div>
+        <div class="ep-date">${ep.air_date || "TBA"}</div>
+      `;
+      row.querySelector(".ep-check").addEventListener("click", async (e) => {
+        e.stopPropagation();
+        ep.watched = !ep.watched;
+        ep.watchedAt = ep.watched ? Date.now() : null;
+        scheduleSave();
+        renderEpisodes();
+        renderDetailHeaderProgress();
+      });
+      list.appendChild(row);
+    });
+  }
+
+  function renderDetailHeaderProgress(){
+    const show = state.shows[currentShowId];
+    const prog = showProgress(show);
+    const label = document.querySelector(".detail-info .filmstrip-label");
+    const fill = document.querySelector(".detail-info .filmstrip-fill");
+    if(label) label.textContent = `${prog.watched} of ${prog.aired} aired episodes watched (${prog.pct}%)`;
+    if(fill) fill.style.width = prog.pct + "%";
+  }
+
+  document.getElementById("view-detail").addEventListener("click", async (e) => {
+    if(e.target.id === "mark-season-btn"){
+      const show = state.shows[currentShowId];
+      const season = show.seasons[currentSeason];
+      Object.keys(season.episodes).forEach(n => {
+        const ep = season.episodes[n];
+        if(ep.air_date && ep.air_date <= todayStr){
+          ep.watched = true;
+          ep.watchedAt = ep.watchedAt || Date.now();
+        }
+      });
+      await saveNow().catch(() => {});
+      renderEpisodes();
+      renderDetailHeaderProgress();
+      showToast("Season marked as watched");
+    }
+  });
+
+  // ---------- Stats ----------
+  function renderStats(){
+    const shows = Object.values(state.shows);
+    let airedTotal = 0, watchedTotal = 0;
+    shows.forEach(show => {
+      const p = showProgress(show);
+      airedTotal += p.aired;
+      watchedTotal += p.watched;
+    });
+    const grid = document.getElementById("stat-grid");
+    const cards = [
+      { num: shows.length, label: "Shows tracked" },
+      { num: watchedTotal, label: "Episodes watched" },
+      { num: airedTotal - watchedTotal, label: "Aired, not yet watched" },
+    ];
+    grid.innerHTML = cards.map(c => `
+      <div class="stat-card"><div class="stat-num">${c.num}</div><div class="stat-label">${c.label}</div></div>
+    `).join("");
+  }
+
+  // ---------- Export ----------
+  document.getElementById("export-btn").addEventListener("click", () => {
+    const blob = new Blob([JSON.stringify(state, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "reel-" + currentUser + "-backup-" + todayStr + ".json";
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast("Backup exported");
+  });
+
+  boot();
+
+  if("serviceWorker" in navigator){
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("service-worker.js").catch(err => console.error("SW registration failed", err));
+    });
+  }
+})();
+</script>
+</body>
+</html>
